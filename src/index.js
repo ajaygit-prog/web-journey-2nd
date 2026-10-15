@@ -1,14 +1,17 @@
 
 import dotenv from 'dotenv' ;
-import {connectDB}  from "./db/connectDb.js";
-
-import {app} from './app.js' 
 
 // FIRST APPROACH TO CONNECT DATABASE : 
 
 dotenv.config({
     path: './.env'
 }) ;
+
+// import { connectDB } from './db/connectDb.js' ;
+// import { app } from './app.js' ;
+const { connectDB } = await import("./db/connectDb.js");
+const { app } = await import("./app.js"); 
+
 
 connectDB()
 .then(()=>{
