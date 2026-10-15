@@ -6,7 +6,9 @@ import {app} from './app.js'
 
 // FIRST APPROACH TO CONNECT DATABASE : 
 
-dotenv.config() ;
+dotenv.config({
+    path: './.env'
+}) ;
 
 connectDB()
 .then(()=>{
