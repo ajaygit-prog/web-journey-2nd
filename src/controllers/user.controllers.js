@@ -3,6 +3,25 @@ import {ApiError} from '../utils/ApiError.js' ;
 import {User} from '../models/user.model.js';
 import { ApiResponse } from "../utils/ApiRsponse.js";
 import { uploadCloudinary} from '../utils/cloudinary.js'
+import { loginUser  } from "../models/login.model.js";
+
+
+const generateAccessAndRefreshToken = async(userId)=>{
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken ()
+
+        user.refreshToken = refreshToken
+        await user.save({validateBeforeSave : false })
+
+        return { accessToken , refreshToken }
+
+
+    } catch (error) {
+        throw new ApiError(500 , "something went wrong while generation refresh and access token" )
+    }
+}
 
 const registerUser = asyncHandeler( async (req , res) => {
     //get user details from frontend
@@ -80,6 +99,98 @@ const registerUser = asyncHandeler( async (req , res) => {
 })
 
 
+const loginUser = asyncHandeler(async (req , res) =>{
+    // req body se data lao
+    //user or email se 
+    //find the user 
+    //password check
+    //access and refresh token
+    //send token cookies 
+
+
+    //req.body se data liya
+    const {email,username,password} = req.body
+
+    //check kiye ki username or password both must be filled
+    if(!username || !email) {
+        throw new ApiError(400 , " username or password is required ") 
+    }
+
+    // now check that username or email exist in the database or not
+    const user = await User.findOne({
+        $or: [{username} , {email}]
+    })
+
+
+    // agar user is not found in the database then throw error
+    if(!user) {
+        throw new ApiError(404 , "user does not exist")
+    }
+
+    //now user pakka mil gaya hai  and next check password matching
+    const isPasswordValid = await user.isPasswordCorrect(password) ;
+
+
+    //check that password is same agr same hoga to isPasswordValid me true stroe hoga otherwise false store hua hoga .....
+    if (!isPasswordValid) {
+      throw new ApiError(401, "Password is incorrect");
+    }
+
+    // ham uper ek access and refresh token ka method hi bana dete hai vaise to yaha bhi likhoge to bhi tkk hai lekin upr likhoge to clean lagega code isliye upr likhe hai
+
+    const { accessToken , refreshToken } = await generateAccessAndRefreshToken(user._id)
+
+    // now you send token throw cookies
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken") ;
+
+    // cokies bhejana 
+    const options = {
+        httpOnly : true ,
+        secure : true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken" , accessToken , options)
+    .cookie("refreshToken" , refreshToken , options)
+    .json(
+        new ApiResponse(200 , {
+            user:loggedInUser , accessToken , refreshToken
+        } , "user loggedin successfully ")
+    )
+
+
+
+
+})
+
+
+const logoutUser = asyncHandeler(async (req ,res) =>{
+    await User.findByIdAndUpdate(req.user._id ,
+        {
+            $set : {
+                refreshToken: undefined
+            }
+        },
+        {
+            new : true
+        }
+
+    )
+    const options = {
+        httpOnly : true ,
+        secure : true
+    }
+
+    return res.status(200)
+    .clearCookie("accessToken" , options)
+    .clearCookie("refreshToken" , options)
+    .json(new ApiResponse(200 , {} , " User logged Out successfully"))
+})
+
+
 export { 
     registerUser ,
+    loginUser,
+    logoutUser
 }

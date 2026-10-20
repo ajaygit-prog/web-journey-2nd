@@ -29,7 +29,7 @@ const userSchema = new Schema(
     },
 
     avtar : {
-        type : String ,//cloudnary url
+        type : String ,//cloudinary url
         required : true
     },
     coverImage : {
@@ -62,7 +62,6 @@ userSchema.pre("save" , async function (next) {
         
     this.password = await bcrypt.hash(this.password , 10) 
     next ;
-    
 })
 
 userSchema.methods.isPasswordCorrect = async function (password) {
