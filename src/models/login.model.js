@@ -1,8 +1,7 @@
 import mongoose from 'mongoose' 
 
 
-const loginSchema  = new Schema({
-    
+const loginSchema  = new mongoose.Schema({
     userName: {
         type: String,
         required: true,
@@ -27,4 +26,4 @@ const loginSchema  = new Schema({
 } , {timestamps : true})
 
 
-export const loginUser = mongoose.model("loginUser" , loginSchema) ;
+export const userLogin = mongoose.model("userLogin" , loginSchema) ;

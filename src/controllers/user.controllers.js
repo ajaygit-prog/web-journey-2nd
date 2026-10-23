@@ -3,7 +3,7 @@ import {ApiError} from '../utils/ApiError.js' ;
 import {User} from '../models/user.model.js';
 import { ApiResponse } from "../utils/ApiRsponse.js";
 import { uploadCloudinary} from '../utils/cloudinary.js'
-import { loginUser  } from "../models/login.model.js";
+import  jwt from 'jsonwebtoken';
 
 
 const generateAccessAndRefreshToken = async(userId)=>{
@@ -13,6 +13,7 @@ const generateAccessAndRefreshToken = async(userId)=>{
         const refreshToken = user.generateRefreshToken ()
 
         user.refreshToken = refreshToken
+
         await user.save({validateBeforeSave : false })
 
         return { accessToken , refreshToken }
@@ -109,10 +110,10 @@ const loginUser = asyncHandeler(async (req , res) =>{
 
 
     //req.body se data liya
-    const {email,username,password} = req.body
+    const {username,email,password} = req.body
 
     //check kiye ki username or password both must be filled
-    if(!username || !email) {
+    if(!(username || email)) {
         throw new ApiError(400 , " username or password is required ") 
     }
 
@@ -142,7 +143,6 @@ const loginUser = asyncHandeler(async (req , res) =>{
 
     // now you send token throw cookies
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken") ;
-
     // cokies bhejana 
     const options = {
         httpOnly : true ,
@@ -166,6 +166,7 @@ const loginUser = asyncHandeler(async (req , res) =>{
 
 
 const logoutUser = asyncHandeler(async (req ,res) =>{
+    //console.log("user logout id is : ", req.user._id)
     await User.findByIdAndUpdate(req.user._id ,
         {
             $set : {
@@ -189,8 +190,55 @@ const logoutUser = asyncHandeler(async (req ,res) =>{
 })
 
 
+const refreshAccessToken = asyncHandeler(async(req ,res) => {
+    const incommingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    
+    // ye or me req.body.refreshToken isliye likhe hai taki agr koi mobile app use kr rha hai i mean app version to use kaise cookies se refreshToken milega kyuki cookies to browser me hota hai
+
+    if(!incommingRefreshToken){
+        throw new ApiError(401 , "unauthorized request")
+    }
+
+    try {
+        const decodedIncommingRefreshToken = jwt.verify(incommingRefreshToken, process.env.REFRESH_TOKEN_SECRET) ;
+    
+        const user = await User.findById(decodedIncommingRefreshToken?._id)
+    
+        if (!user) {
+          throw new ApiError(401, "invalid refresh Token");
+        }
+    
+        if(incommingRefreshToken !== user?.refreshToken){
+            throw new ApiError(401 , " Refresh token expired or used ")
+        }
+    
+        const options = {
+            httpOnly : true ,
+            secure : true
+        }
+        const {accessToken , newRefreshToken} = await generateAccessAndRefreshToken(user._id)
+        return res
+        .status(200)
+        .cookie("accessToken" , accessToken , options)
+        .cookie("refreshToken" , newRefreshToken , options)
+        .json(
+            new ApiResponse(200 ,
+                {accessToken , refreshToken : newRefreshToken},
+                "Access token refreshed"
+    
+            )
+        )
+    
+    } catch (error) {
+        throw new ApiError(401 , error?.message || "Invalid refresh token")
+    }
+
+})
+
+
 export { 
-    registerUser ,
-    loginUser,
-    logoutUser
-}
+    registerUser, 
+    loginUser, 
+    logoutUser, 
+    refreshAccessToken 
+};
