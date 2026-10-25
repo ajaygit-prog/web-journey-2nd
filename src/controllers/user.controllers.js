@@ -110,16 +110,19 @@ const loginUser = asyncHandeler(async (req , res) =>{
 
 
     //req.body se data liya
-    const {username,email,password} = req.body
+    const {userName,email,password} = req.body
 
     //check kiye ki username or password both must be filled
-    if(!(username || email)) {
+    if(!(userName || email)) {
         throw new ApiError(400 , " username or password is required ") 
     }
+    
+
+    
 
     // now check that username or email exist in the database or not
     const user = await User.findOne({
-        $or: [{username} , {email}]
+        $or: [{userName} ,{email}]
     })
 
 
@@ -169,8 +172,8 @@ const logoutUser = asyncHandeler(async (req ,res) =>{
     //console.log("user logout id is : ", req.user._id)
     await User.findByIdAndUpdate(req.user._id ,
         {
-            $set : {
-                refreshToken: undefined
+            $unset : {
+                refreshToken: 1,
             }
         },
         {
